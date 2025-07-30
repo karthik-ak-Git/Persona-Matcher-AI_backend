@@ -27,7 +27,6 @@ try:
             if isinstance(product, dict) and 'error' not in product:
                 print(f"--- Product {i+1} ---")
                 print(f"✨ Title: {product.get('title', 'N/A')}")
-                print(f"   Price: {product.get('price', 'N/A')}")
                 print(f"   URL: {product.get('url', 'N/A')}")
                 print(f"   Image: {product.get('image_url', 'N/A')}\n")
             else:

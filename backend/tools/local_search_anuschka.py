@@ -53,11 +53,6 @@ def search_anuschka_products(query: str) -> list[dict]:
 
             title = title.get_text(strip=True) if title else 'N/A'
 
-            price = soup.select_one(
-                '.price__regular .price-item, .product__price, .price, .product-price')
-            price = price.get_text(
-                strip=True) if price else 'Price not available'
-
             # --- NEW, MORE ROBUST IMAGE EXTRACTION STRATEGY ---
             image_url = ''
 
@@ -122,7 +117,6 @@ def search_anuschka_products(query: str) -> list[dict]:
                 'id': str(hash(url)),  # Generate unique ID from URL
                 'name': title,  # Map title to name for frontend
                 'title': title,  # Keep original for backwards compatibility
-                'price': price,
                 'link': url,  # Map url to link for frontend
                 'url': url,  # Keep original for backwards compatibility
                 'image': image_url,  # Map image_url to image for frontend
