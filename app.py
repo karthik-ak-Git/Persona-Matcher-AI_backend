@@ -6,6 +6,8 @@ import shutil
 import os
 import tempfile
 
+import requests
+
 from tools.agent_tool import find_anuschka_bag_for_style
 
 app = FastAPI(title="Persona Matcher AI Backend", version="1.0.0")
@@ -27,6 +29,18 @@ class TextRequest(BaseModel):
 @app.get("/")
 async def root():
     return {"message": "Persona Matcher AI Backend is running"}
+
+
+# New endpoint to fetch data from http://0.0.0.0:8000/
+@app.get("/fetch-root")
+async def fetch_root():
+    """Fetch data from the root endpoint of this API."""
+    try:
+        response = requests.get("http://0.0.0.0:8000/")
+        response.raise_for_status()
+        return response.json()
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
 @app.post("/recommend/text")
