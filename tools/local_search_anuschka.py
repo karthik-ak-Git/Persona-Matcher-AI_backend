@@ -1,25 +1,23 @@
-# tools/local_search_anuschka.py
-
 import requests
 from bs4 import BeautifulSoup
-from urllib.parse import urljoin, quote_plus
-import re
-import os
 import json
-try:
-    from ddgs import DDGS
-except ImportError:
-    from duckduckgo_search import DDGS
+from duckduckgo_search import DDGS
+from urllib.parse import urljoin
 
+def search_products(query: str, max_results=5):
+    """
+    Searches for products on the Anuschka Leather website using DuckDuckGo and scrapes product details.
 
-def search_anuschka_products(query: str) -> list[dict]:
+    Args:
+        query: The search query.
+        max_results: The maximum number of products to return.
+
+    Returns:
+        A list of dictionaries, where each dictionary represents a product.
     """
-    Searches for Anuschka products using DuckDuckGo site search. It uses a
-    multi-step process to reliably extract the main image URL from the product page.
-    """
+    base_url = "https://anuschkaleather.com"
+    site_query = f"site:{base_url} {query}"
     products = []
-    base_url = "https://www.anuschkaleather.com"
-    site_query = f"site:anuschkaleather.com {query}"
     seen_urls = set()
 
     print(f"[🦆] Searching DuckDuckGo for: {site_query}")
@@ -27,11 +25,19 @@ def search_anuschka_products(query: str) -> list[dict]:
         with DDGS() as ddgs:
             # Get more results to increase chances of finding valid products
             results = list(ddgs.text(site_query, max_results=15))
+            print(f"[📊] DDGS returned {len(results)} results.")
     except Exception as e:
         print(f"[❌] DuckDuckGo search failed: {e}")
         results = []
 
+    if not results:
+        print("[⚠️] No results from DuckDuckGo search. Aborting.")
+        return []
+
     for r in results:
+        if len(products) >= max_results:
+            break
+
         url = r.get('href') or r.get('url')
         # Ensure we are only processing valid product pages
         if not url or 'anuschkaleather.com/products/' not in url:
@@ -44,14 +50,24 @@ def search_anuschka_products(query: str) -> list[dict]:
 
         print(f"[🔗] Processing product page: {url}")
         try:
-            resp = requests.get(url, timeout=20)
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            }
+            resp = requests.get(url, timeout=20, headers=headers)
+            print(f"[📈] HTTP Status for {url}: {resp.status_code}")
             resp.raise_for_status()
             soup = BeautifulSoup(resp.content, 'html.parser')
 
-            title = soup.select_one(
+            title_el = soup.select_one(
                 'h1.product__title, h1.product-title, h1, title')
+            title = title_el.get_text(strip=True) if title_el else 'N/A'
+            print(f"[🏷️] Found title: {title != 'N/A'}")
 
-            title = title.get_text(strip=True) if title else 'N/A'
+            price_el = soup.select_one(
+                '.price__regular .price-item, .product__price, .price, .product-price')
+            price = price_el.get_text(
+                strip=True) if price_el else 'Price not available'
+            print(f"[💰] Found price: {price != 'Price not available'}")
 
             # --- NEW, MORE ROBUST IMAGE EXTRACTION STRATEGY ---
             image_url = ''
@@ -107,28 +123,35 @@ def search_anuschka_products(query: str) -> list[dict]:
 
             if not image_url:
                 print(
-                    "[❌] Could not find an image URL for this product using any method.")
+                    f"[❌] Could not find an image URL for this product: {url}")
 
             desc = soup.select_one(
                 '.product__description, .product-description, .product__info-content')
             description = desc.get_text(strip=True) if desc else ''
 
-            products.append({
-                'id': str(hash(url)),  # Generate unique ID from URL
-                'name': title,  # Map title to name for frontend
-                'title': title,  # Keep original for backwards compatibility
-                'link': url,  # Map url to link for frontend
-                'url': url,  # Keep original for backwards compatibility
-                'image': image_url,  # Map image_url to image for frontend
-                'image_url': image_url,  # Keep original for backwards compatibility
-                'description': description,
-            })
+            # Only add product if we have the essential details
+            if title != 'N/A' and image_url:
+                products.append({
+                    'id': str(hash(url)),  # Generate unique ID from URL
+                    'name': title,  # Map title to name for frontend
+                    'title': title,  # Keep original for backwards compatibility
+                    'price': price,
+                    'link': url,  # Map url to link for frontend
+                    'url': url,  # Keep original for backwards compatibility
+                    'image': image_url,  # Map image_url to image for frontend
+                    'image_url': image_url,  # Keep original for backwards compatibility
+                    'description': description,
+                })
+                print(f"[✅] Successfully scraped product: {title}")
+            else:
+                print(f"[❌] Discarding product due to missing title or image: {url}")
+
+        except requests.exceptions.RequestException as e:
+            print(f"[⚠️] Request failed for {url}: {e}")
+            continue
         except Exception as e:
             print(f"[⚠️] Error scraping {url}: {e}")
             continue
 
-    if not products:
-        print("[❌] No products found after searching and processing.")
-
-    print(f"[🔍] Successfully extracted {len(products)} products.")
+    print(f"[🎉] Finished scraping. Found {len(products)} valid products.")
     return products
