@@ -2,7 +2,7 @@
 
 from langchain_core.tools import tool
 from .bag_recommender import get_style_recommendation
-from .local_search_anuschka import search_anuschka_products
+from .local_search_anuschka import search_products
 import re
 
 
@@ -31,7 +31,7 @@ def find_anuschka_bag_for_style(style_description: str) -> list[dict]:
     primary_search_query = ' '.join(keywords[:3])
     print(
         f"[🔑] Attempting primary search with keywords: '{primary_search_query}'")
-    products = search_anuschka_products(primary_search_query)
+    products = search_products(primary_search_query)
 
     # --- Secondary Search ---
     if not products:
@@ -39,7 +39,7 @@ def find_anuschka_bag_for_style(style_description: str) -> list[dict]:
         secondary_search_query = ' '.join(keywords[:2])
         print(
             f"[🔑] Attempting secondary search with keywords: '{secondary_search_query}'")
-        products = search_anuschka_products(secondary_search_query)
+        products = search_products(secondary_search_query)
 
     # --- Tertiary Search ---
     if not products:
@@ -47,14 +47,14 @@ def find_anuschka_bag_for_style(style_description: str) -> list[dict]:
         tertiary_search_query = keywords[0]
         print(
             f"[🔑] Attempting tertiary search with keyword: '{tertiary_search_query}'")
-        products = search_anuschka_products(tertiary_search_query)
+        products = search_products(tertiary_search_query)
 
     # --- Final Broad Search with Filtering ---
     if not products:
         print(
             "[🛠️] All strict keyword searches failed. Trying broad site search + keyword filtering.")
         # Empty query to trigger broad search
-        all_results = search_anuschka_products("")
+        all_results = search_products("")
 
         if all_results:
             print(
